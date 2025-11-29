@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EngeneWeather</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: { extend: { fontFamily: { sans: ['Poppins', 'sans-serif'] } } }
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        
+        body { transition: background 0.5s ease, color 0.5s ease; }
+
+        .dark body { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); color: white; }
+        .dark .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        html:not(.dark) body { background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%); color: #1e293b; }
+        html:not(.dark) .glass-panel {
+            background: rgba(255, 255, 255, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.05);
+        }
+
+        .glass-panel {
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            transition: all 0.3s ease;
+        }
+
+        .fade-in { animation: fadeIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; opacity: 0; transform: translateY(15px); }
+        @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: rgba(128,128,128,0.3); border-radius: 10px; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center py-8">
+
+    <div class="w-full max-w-[95%] xl:max-w-[1600px] px-4">
+        
+        <div class="flex flex-col xl:flex-row justify-between items-center mb-8 gap-6 fade-in">
+            <div class="flex items-center gap-4">
+                <div class="w-14 h-14 bg-gradient-to-tr from-cyan-400 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-cyan-500/30">
+                    <i class="fas fa-meteor text-white text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-3xl font-bold tracking-tight">EngeneWeather <span class="text-cyan-500">Dashboard</span></h1>
+                    <p class="text-sm opacity-70">Weather Forecast Dashboard</p>
+                </div>
+            </div>
+
+            <div id="favoritesBar" class="flex gap-2 overflow-x-auto max-w-md pb-2 xl:pb-0 scrollbar-hide">
+                </div>
+
+            <div class="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+                <div class="relative w-full md:w-80 group">
+                    <input type="text" id="cityInput" list="citySuggestions" placeholder="Cari kota..." 
+                        class="w-full h-12 glass-panel px-5 rounded-xl outline-none focus:ring-2 focus:ring-cyan-400 font-medium">
+                    <button id="searchBtn" class="absolute right-2 top-2 h-8 w-8 bg-cyan-500 hover:bg-cyan-400 text-white rounded-lg flex items-center justify-center transition">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <datalist id="citySuggestions">
+                        <option value="Jakarta"></option>
+                        <option value="Bandung"></option>
+                        <option value="Surabaya"></option>
+                        <option value="Bali"></option>
+                        <option value="Medan"></option>
+                    </datalist>
+                </div>
+                
+                <div class="flex gap-2 justify-center">
+                    <button id="refreshBtn" class="h-12 w-12 glass-panel rounded-xl hover:bg-white/10 flex items-center justify-center text-lg transition" title="Refresh Data">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <button id="favBtn" class="h-12 w-12 glass-panel rounded-xl hover:bg-pink-500/20 text-gray-400 hover:text-pink-500 flex items-center justify-center text-lg transition" title="Save to Favorites">
+                        <i class="fas fa-heart"></i>
+                    </button>
+                    <button id="themeBtn" class="h-12 w-12 glass-panel rounded-xl hover:bg-yellow-500/20 flex items-center justify-center text-lg transition" title="Toggle Theme">
+                        <i class="fas fa-sun"></i>
+                    </button>
+                    <button id="unitBtn" class="h-12 px-4 glass-panel rounded-xl font-bold hover:bg-white/10 transition">°C</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="loading" class="hidden h-96 flex flex-col items-center justify-center">
+            <div class="w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p class="animate-pulse font-medium opacity-70">Mengambil data satelit...</p>
+        </div>
+
+        <div id="dashboard" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <div class="lg:col-span-8 flex flex-col gap-6 fade-in" style="animation-delay: 0.1s;">
+                
+                <div class="glass-panel rounded-[2rem] p-8 md:p-10 relative overflow-hidden flex flex-col md:flex-row justify-between items-center min-h-[300px]">
+                    <div class="absolute top-0 right-0 w-64 h-64 bg-cyan-500/20 blur-[80px] rounded-full pointer-events-none"></div>
+
+                    <div class="z-10 text-center md:text-left">
+                        <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-500 font-semibold text-sm mb-4">
+                            <i class="fas fa-map-marker-alt"></i> <span id="cityName">JAKARTA</span>
+                        </div>
+                        <h2 class="text-8xl md:text-9xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-current to-cyan-400 leading-tight" id="tempDisplay">32°</h2>
+                        <p id="weatherDesc" class="text-2xl font-light capitalize opacity-90 mt-2">Hujan Ringan</p>
+                        <p id="timestamp" class="text-sm opacity-60 mt-6 font-mono">Updated: 12:00 PM</p>
+                    </div>
+
+                    <div class="z-10 mt-6 md:mt-0 relative">
+                        <img id="weatherIconImg" src="" class="w-52 h-52 drop-shadow-[0_0_40px_rgba(6,182,212,0.4)] animate-pulse-slow">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
+                    <div class="glass-panel rounded-3xl p-5 flex flex-col items-center justify-center relative min-h-[220px]">
+                        <div id="chartTemp" class="mt-2"></div>
+                        <p class="absolute bottom-6 font-semibold opacity-70 tracking-widest text-xs">TEMPERATURE</p>
+                    </div>
+                    <div class="glass-panel rounded-3xl p-5 flex flex-col items-center justify-center relative min-h-[220px]">
+                        <div id="chartHumid" class="mt-2"></div>
+                        <p class="absolute bottom-6 font-semibold opacity-70 tracking-widest text-xs">HUMIDITY</p>
+                    </div>
+                    <div class="glass-panel rounded-3xl p-5 flex flex-col items-center justify-center relative min-h-[220px]">
+                        <div id="chartWind" class="mt-2"></div>
+                        <p class="absolute bottom-6 font-semibold opacity-70 tracking-widest text-xs">WIND SPEED</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-4 glass-panel rounded-[2rem] p-8 fade-in h-full flex flex-col" style="animation-delay: 0.2s;">
+                <div class="flex justify-between items-end mb-8">
+                    <h3 class="text-2xl font-bold">5-Day Forecast</h3>
+                    <i class="far fa-calendar-alt text-cyan-500 text-xl"></i>
+                </div>
+
+                <div id="forecastList" class="flex flex-col gap-4 flex-grow">
+                    </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="logic.js"></script>
+</body>
+</html>
